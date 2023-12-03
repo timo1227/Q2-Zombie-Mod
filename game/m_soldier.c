@@ -28,6 +28,8 @@ SOLDIER
 #include "g_local.h"
 #include "m_soldier.h"
 
+extern int zombiesAlive;
+extern int roundZombies;
 
 static int	sound_idle;
 static int	sound_sight1;
@@ -325,7 +327,7 @@ void soldier_run (edict_t *self)
 		self->monsterinfo.currentmove == &soldier_move_walk2 ||
 		self->monsterinfo.currentmove == &soldier_move_start_run)
 	{
-		self->monsterinfo.currentmove = &soldier_move_run;
+		self->monsterinfo.currentmove = &soldier_move_walk1;
 	}
 	else
 	{
@@ -503,18 +505,18 @@ void soldier_fire (edict_t *self, int flash_number)
 
 	if (self->s.skinnum <= 1)
 	{
-		monster_fire_blaster (self, start, aim, 5, 600, flash_index, EF_BLASTER);
+		monster_fire_blaster (self, start, aim, 1, 600, flash_index, EF_BLASTER);
 	}
 	else if (self->s.skinnum <= 3)
 	{
-		monster_fire_shotgun (self, start, aim, 2, 1, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SHOTGUN_COUNT, flash_index);
+		monster_fire_shotgun (self, start, aim, 1, 1, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SHOTGUN_COUNT, flash_index);
 	}
 	else
 	{
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 			self->monsterinfo.pausetime = level.time + (3 + rand() % 8) * FRAMETIME;
 
-		monster_fire_bullet (self, start, aim, 2, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		monster_fire_bullet (self, start, aim, 1, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 
 		if (level.time >= self->monsterinfo.pausetime)
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
@@ -1145,6 +1147,11 @@ void soldier_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 {
 	int		n;
 
+	zombiesAlive--;  // Decrement zombiesAlive count
+	gi.dprintf("zombiesAlive :%d\n", zombiesAlive);
+	roundZombies--;
+	gi.dprintf("roundZombies :%d\n", roundZombies);
+
 // check for gib
 	if (self->health <= self->gib_health)
 	{
@@ -1258,14 +1265,8 @@ void SP_monster_soldier_light (edict_t *self)
 
 /*QUAKED monster_soldier (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 */
-void SP_monster_soldier (edict_t *self)
+void SP_monster_soldier(edict_t* self, int roundNumber)
 {
-	if (deathmatch->value)
-	{
-		G_FreeEdict (self);
-		return;
-	}
-
 	SP_monster_soldier_x (self);
 
 	sound_pain = gi.soundindex ("soldier/solpain1.wav");
@@ -1273,7 +1274,8 @@ void SP_monster_soldier (edict_t *self)
 	gi.soundindex ("soldier/solatck1.wav");
 
 	self->s.skinnum = 2;
-	self->health = 30;
+	// Health scales with round number
+	self->health = 30 + (roundNumber * .5);
 	self->gib_health = -30;
 }
 

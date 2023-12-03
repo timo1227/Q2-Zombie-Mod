@@ -513,6 +513,10 @@ extern	edict_t			*g_edicts;
 #define random()	((rand () & 0x7fff) / ((float)0x7fff))
 #define crandom()	(2.0 * (random() - 0.5))
 
+#define MAX_ZOMBIES 10 
+#define WAVE_COOLDOWN_TIME 10.0 // 10 seconds cooldown between waves
+#define WAVE_INIT_DELAY 20.0 // Delay in seconds before initializing the wave system
+
 extern	cvar_t	*maxentities;
 extern	cvar_t	*deathmatch;
 extern	cvar_t	*coop;
