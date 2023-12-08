@@ -246,6 +246,14 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 		stringlength += j;
 	}
 
+	// Append information about the current wave
+	char waveInfo[128];
+	snprintf(waveInfo, sizeof(waveInfo), "xv 20 yv 20 string2 \"Round: %d\" ", currentWave);
+	if (stringlength + strlen(waveInfo) < 1400) {
+		strcat(string, waveInfo);
+		stringlength += strlen(waveInfo);
+	}
+
 	gi.WriteByte (svc_layout);
 	gi.WriteString (string);
 }
