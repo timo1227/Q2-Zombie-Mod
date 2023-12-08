@@ -20,6 +20,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "g_local.h"
 #include "m_player.h"
 
+#define SELF_REVIVE_TIME 10.0 // 30 seconds for self-revive
+
+extern int currentWave;
+
 void ClientUserinfoChanged (edict_t *ent, char *userinfo);
 
 void SP_misc_teleporter_dest (edict_t *ent);
@@ -512,8 +516,8 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	self->s.angles[0] = 0;
 	self->s.angles[2] = 0;
 
-	self->s.sound = 0;
-	self->client->weapon_sound = 0;
+	//self->s.sound = 0;
+	//self->client->weapon_sound = 0;
 
 	self->maxs[2] = -8;
 
@@ -522,6 +526,26 @@ void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	if (!self->deadflag)
 	{
+		self->client->deadRound = currentWave; // Set the round number
+		self->downflag = DOWN_YES;
+
+		if (self->client->selfRevivesRemaining > 0) {
+
+
+			// Set the self-revive timer
+			self->client->selfReviveTime = level.time + SELF_REVIVE_TIME;
+
+			// Set player in a 'downed' state
+			self->deadflag = DEAD_DYING; // or any other flag you use to indicate 'downed' state
+			self->client->ps.pmove.pm_type = PM_DEAD; // Adjust player movement to reflect 'downed' state
+
+			DisplayDownedMessage(self);
+			gi.unicast(self, true);
+
+			// Skip the normal death process
+			return;
+		}
+
 		self->client->respawn_time = level.time + 1.0;
 		LookAtKiller (self, inflictor, attacker);
 		self->client->ps.pmove.pm_type = PM_DEAD;
@@ -979,11 +1003,15 @@ void CopyToBodyQue (edict_t *ent)
 
 void respawn (edict_t *self)
 {
-	if (deathmatch->value || coop->value)
+	if (self->client->deadRound == currentWave && !self->client->pers.spectator && currentWave != 0 || self->downflag == DOWN_YES && currentWave != 0 && self->movetype != MOVETYPE_NOCLIP) {
+		return; // Prevent respawn if the player died this round
+	}
+
+	if (deathmatch->value)
 	{
 		// spectator's don't leave bodies
-		if (self->movetype != MOVETYPE_NOCLIP)
-			CopyToBodyQue (self);
+		//if (self->movetype != MOVETYPE_NOCLIP)
+		//	CopyToBodyQue (self);
 		self->svflags &= ~SVF_NOCLIENT;
 		PutClientInServer (self);
 
@@ -1117,11 +1145,14 @@ void PutClientInServer (edict_t *ent)
 	if (deathmatch->value)
 	{
 		char		userinfo[MAX_INFO_STRING];
+		qboolean tempSpec = client->pers.spectator;
 
 		resp = client->resp;
 		memcpy (userinfo, client->pers.userinfo, sizeof(userinfo));
 		InitClientPersistant (client);
 		ClientUserinfoChanged (ent, userinfo);
+
+		client->pers.spectator = tempSpec;
 	}
 	else if (coop->value)
 	{
@@ -1148,6 +1179,9 @@ void PutClientInServer (edict_t *ent)
 		memset (&resp, 0, sizeof(resp));
 	}
 
+
+	int playerTempDeadRound = client->deadRound; //preserve deadRound
+
 	// clear everything but the persistant data
 	saved = client->pers;
 	memset (client, 0, sizeof(*client));
@@ -1158,6 +1192,8 @@ void PutClientInServer (edict_t *ent)
 
 	// copy some data from the client to the entity
 	FetchClientEntData (ent);
+
+	client->deadRound = playerTempDeadRound;
 
 	// clear entity values
 	ent->groundentity = NULL;
@@ -1170,6 +1206,7 @@ void PutClientInServer (edict_t *ent)
 	ent->mass = 200;
 	ent->solid = SOLID_BBOX;
 	ent->deadflag = DEAD_NO;
+	ent->downflag = DOWN_NO;
 	ent->air_finished = level.time + 12;
 	ent->clipmask = MASK_PLAYERSOLID;
 	ent->model = "players/male/tris.md2";
@@ -1253,6 +1290,9 @@ void PutClientInServer (edict_t *ent)
 	// force the current weapon up
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon (ent);
+
+	// Initialize self-revives for zombie mode
+	client->selfRevivesRemaining = 3;
 }
 
 /*
@@ -1803,3 +1843,94 @@ void ClientBeginServerFrame (edict_t *ent)
 
 	client->latched_buttons = 0;
 }
+
+void Cmd_SelfRevive_f(edict_t* player) {
+	gclient_t* client;
+
+	client = player->client;
+
+	ClearDownedMessage(player);
+
+	if (player->deadflag == DEAD_DYING && player->client->selfRevivesRemaining > 0) {
+		// Perform self-revive
+
+		player->client->deadRound = 0; // Set the round number
+
+		InitClientPersistant(player->client);
+
+		player->groundentity = NULL;
+		player->takedamage = DAMAGE_AIM;
+		player->movetype = MOVETYPE_WALK;
+		player->viewheight = 22;
+		player->inuse = true;
+		player->classname = "player";
+		player->mass = 200;
+		player->solid = SOLID_BBOX;
+		player->deadflag = DEAD_NO;
+		player->downflag = DOWN_NO;
+		player->air_finished = level.time + 12;
+		player->clipmask = MASK_PLAYERSOLID;
+		player->model = "players/male/tris.md2";
+		player->pain = player_pain;
+		player->die = player_die;
+		player->waterlevel = 0;
+		player->watertype = 0;
+		player->flags &= ~FL_NO_KNOCKBACK;
+		player->svflags &= ~SVF_DEADMONSTER;
+
+		player->health = 25;
+		player->client->ps.pmove.pm_type = PM_NORMAL;
+
+		player->s.modelindex2 = 255;
+		player->maxs[2] = 32;
+
+		player->client->newweapon = player->client->pers.weapon;
+		ChangeWeapon(player);
+
+		player->client->selfRevivesRemaining--;
+	}
+}
+
+void TryReviveOtherPlayer(edict_t* player, edict_t* target) {
+	gclient_t* client;
+
+	client = target->client;
+
+	ClearDownedMessage(target);
+
+	if (target->deadflag == DEAD_DYING) {
+		target->client->deadRound = 0; // Set the round number
+
+		target->groundentity = NULL;
+		target->takedamage = DAMAGE_AIM;
+		target->movetype = MOVETYPE_WALK;
+		target->viewheight = 22;
+		target->inuse = true;
+		target->classname = "player";
+		target->mass = 200;
+		target->solid = SOLID_BBOX;
+		target->deadflag = DEAD_NO;
+		target->downflag = DOWN_NO;
+		target->air_finished = level.time + 12;
+		target->clipmask = MASK_PLAYERSOLID;
+		target->model = "players/male/tris.md2";
+		target->pain = player_pain;
+		target->die = player_die;
+		target->waterlevel = 0;
+		target->watertype = 0;
+		target->flags &= ~FL_NO_KNOCKBACK;
+		target->svflags &= ~SVF_DEADMONSTER;
+
+		target->health = 25;
+		target->client->ps.pmove.pm_type = PM_NORMAL;
+
+		target->s.modelindex2 = 255;
+		target->maxs[2] = 32;
+
+		target->client->newweapon = target->client->pers.weapon;
+		ChangeWeapon(target);
+
+		target->client->selfRevivesRemaining--;
+	}
+}
+

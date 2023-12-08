@@ -86,7 +86,7 @@ void ReadLevel (char *filename);
 void InitGame (void);
 void G_RunFrame (void);
 
-static int currentWave = 0;
+int currentWave = 0;
 static int zombiesToSpawn = 0;
 int zombiesAlive = 0; 
 int roundZombies = 0; // Total number of zombies to be spawned in the current round
@@ -479,7 +479,6 @@ void ManageWaveProgression() {
 				if (!client->inuse)
 					continue;
 
-				gi.cprintf(client, PRINT_HIGH, "Round: %d\n", zombiesAlive);
 			}
 
 			// Set the cooldown for the next wave
@@ -499,16 +498,69 @@ InitializeWaveSystem
 */
 void InitializeWaveSystem() {
 	currentWave = 1;
-	gi.dprintf("currentWave: %d\n", currentWave);
 
 	zombiesToSpawn = CalculateZombiesToSpawn(currentWave);
 	roundZombies = zombiesToSpawn;
-	gi.dprintf("zombiesToSpawn: %d\n", zombiesToSpawn);
 
 	zombiesAlive = 0;
 	waveActive = true;
 
 	SpawnWaveZombies();
+}
+
+/*
+=============
+CheckSelfRevive
+=============
+*/
+void CheckSelfRevive(edict_t* player) {
+	edict_t*	players[MAX_CLIENTS];
+	int			numPlayers = FindAllPlayers(players, MAX_CLIENTS);
+	
+	// Check If player is down and has remaining Revives 
+	if (player->downflag == DOWN_YES && player->client->selfRevivesRemaining == 0) {
+		if (numPlayers == 1) {
+			gi.cprintf(player, PRINT_HIGH, "GAME OVER!\n");
+			EndDMLevel ();
+		}
+	};
+
+	if (player->deadflag == DEAD_DYING && level.time > player->client->selfReviveTime) {
+
+		player->deadflag = DEAD_DEAD; // Player is now fully dead
+
+		// Check if the player should enter spectator mode or if the game should end
+		if (numPlayers > 1) {
+			// More than one player remaining, switch to spectator mode
+			if (!player->client->pers.spectator) {
+				player->client->pers.spectator = true;
+				player->client->resp.spectator = true;
+				player->movetype = MOVETYPE_NOCLIP;
+				player->downflag = DOWN_NO;
+				spectator_respawn(player);
+			}
+		}
+		else {
+			// Last player, end the game
+			if (!player->client->pers.spectator) {
+				player->client->pers.spectator = true;
+				player->client->resp.spectator = true;
+				player->movetype = MOVETYPE_NOCLIP;
+				player->downflag = DOWN_NO;
+				spectator_respawn(player);
+			}
+
+			gi.cprintf(player, PRINT_HIGH, "GAME OVER!\n");
+			//ExitLevel();
+		}
+	}
+}
+
+void CheckRespawn(edict_t* self) {
+	if (deathmatch->value && self->client->deadRound != currentWave && self->client->pers.spectator) {
+		self->client->pers.spectator = false;
+		respawn(self);
+	}
 }
 
 /*
@@ -552,6 +604,15 @@ void G_RunFrame (void)
 	// Wave management
 	ManageWaveProgression();
 
+	// check if players are down
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* player = g_edicts + 1 + i;
+		if (player->inuse) {
+			CheckSelfRevive(player);
+			CheckRespawn(player);
+		}
+	}
+
 	//
 	// treat each object in turn
 	// even the world gets a chance to think
@@ -586,7 +647,7 @@ void G_RunFrame (void)
 	}
 
 	// see if it is time to end a deathmatch
-	CheckDMRules ();
+	// CheckDMRules ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();

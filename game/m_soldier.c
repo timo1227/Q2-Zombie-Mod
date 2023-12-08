@@ -1148,9 +1148,9 @@ void soldier_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 	int		n;
 
 	zombiesAlive--;  // Decrement zombiesAlive count
-	gi.dprintf("zombiesAlive :%d\n", zombiesAlive);
+	//gi.dprintf("zombiesAlive :%d\n", zombiesAlive);
 	roundZombies--;
-	gi.dprintf("roundZombies :%d\n", roundZombies);
+	//gi.dprintf("roundZombies :%d\n", roundZombies);
 
 // check for gib
 	if (self->health <= self->gib_health)
