@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "g_local.h"
 #include "m_player.h"
 
+extern int currentWave;
 
 char *ClientTeam (edict_t *ent)
 {
@@ -463,30 +464,48 @@ void Cmd_Drop_f (edict_t *ent)
 Cmd_Inven_f
 =================
 */
-void Cmd_Inven_f (edict_t *ent)
-{
-	int			i;
-	gclient_t	*cl;
+void Cmd_Inven_f(edict_t* ent) {
+	char			entry[1024];
+	char			string[1400];
+	int				stringlength;
+	gclient_t*		cl;
 
+	gi.unicast(ent, true);
 	cl = ent->client;
 
-	cl->showscores = false;
 	cl->showhelp = false;
+	cl->showdowned = false;
 
-	if (cl->showinventory)
+	if (cl->showscores && cl->showzombie)
 	{
-		cl->showinventory = false;
+		cl->showscores = false;
+		cl->showzombie = false;
 		return;
 	}
 
-	cl->showinventory = true;
+	cl->showscores = true;
+	cl->showzombie = true;
 
-	gi.WriteByte (svc_inventory);
-	for (i=0 ; i<MAX_ITEMS ; i++)
-	{
-		gi.WriteShort (cl->pers.inventory[i]);
-	}
-	gi.unicast (ent, true);
+	// Initialize the string
+	string[0] = 0;
+	stringlength = strlen(string);
+
+	// Append information about the game mode and key bindings
+	snprintf(entry, sizeof(entry), "xv 20 yv 20 string2 \"Zombie Mode\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
+	snprintf(entry, sizeof(entry), "xv 20 yv 40 string2 \"Press 'F' to Self-Revive\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
+	snprintf(entry, sizeof(entry), "xv 20 yv 60 string2 \"Press 'H' to Revive Teammate\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
+	// Send the layout
+	gi.WriteByte(svc_layout);
+	gi.WriteString(string);
 }
 
 /*
@@ -899,6 +918,62 @@ void Cmd_PlayerList_f(edict_t *ent)
 	gi.cprintf(ent, PRINT_HIGH, "%s", text);
 }
 
+/*
+=================
+FindNearestDownedPlayer
+=================
+*/
+edict_t* FindNearestDownedPlayer(edict_t* player) {
+	edict_t* closest = NULL;
+	float closestDistance = REVIVE_RADIUS;
+	float distance;
+	vec3_t distanceVector;
+
+	if (player->downflag == DOWN_YES || player->client->pers.spectator || player->deadflag == DEAD_DEAD)
+		return;
+
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* target = g_edicts + 1 + i;
+
+		if (!target->inuse || target == player || target->deadflag != DEAD_DYING)
+			continue;
+
+		VectorSubtract(target->s.origin, player->s.origin, distanceVector);
+		distance = VectorLength(distanceVector);
+
+		if (distance < closestDistance) {
+			closest = target;
+			closestDistance = distance;
+		}
+	}
+
+	if (!closest) {
+		gi.cprintf(player, PRINT_HIGH, "No downed player found within revive range.\n");
+	}
+
+	return closest;
+}
+
+/*
+=================
+Cmd_ReviveOther_f
+=================
+*/
+void Cmd_ReviveOther_f(edict_t* player) {
+	edict_t* target = FindNearestDownedPlayer(player);
+	if (target) {
+		TryReviveOtherPlayer(player, target);
+	}
+}
+
+void Cmd_Revives_f(edict_t* player) {
+	gi.cprintf(player, PRINT_HIGH, "Revive(s): %d\n", player->client->selfRevivesRemaining);
+}
+
+void Cmd_Round_f(edict_t* player) {
+	currentWave++;
+	gi.cprintf(player, PRINT_HIGH, "Next Round, Current Round: %d\n", currentWave);
+}
 
 /*
 =================
@@ -987,6 +1062,14 @@ void ClientCommand (edict_t *ent)
 		Cmd_Wave_f (ent);
 	else if (Q_stricmp(cmd, "playerlist") == 0)
 		Cmd_PlayerList_f(ent);
+	else if (Q_stricmp(cmd, "selfrevive") == 0)
+		Cmd_SelfRevive_f(ent);
+	else if (Q_stricmp(cmd, "reviveother") == 0)
+		Cmd_ReviveOther_f(ent);
+	else if (Q_stricmp(cmd, "revives") == 0)
+		Cmd_Revives_f(ent);
+	else if (Q_stricmp(cmd, "round") == 0)
+		Cmd_Round_f(ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);
 }

@@ -86,6 +86,17 @@ void ReadLevel (char *filename);
 void InitGame (void);
 void G_RunFrame (void);
 
+int currentWave = 0;
+static int zombiesToSpawn = 0;
+int zombiesAlive = 0; 
+int roundZombies = 0; // Total number of zombies to be spawned in the current round
+static qboolean waveActive = false;
+
+static float nextWaveTime = 0;
+static float waveSystemInitTime = 0; // Time at which the wave system will be initialized
+
+// Initialize wave system at the start of the game or level
+static qboolean isWaveSystemInitialized = false;
 
 //===================================================================
 
@@ -344,6 +355,215 @@ void ExitLevel (void)
 }
 
 /*
+=============
+IsValidSpawnLocation
+=============
+*/
+qboolean IsValidSpawnLocation(vec3_t pos) {
+	trace_t tr;
+	vec3_t mins, maxs;
+	vec3_t end;
+
+	// Set the bounding box dimensions for a typical zombie
+	VectorSet(mins, -16, -16, -24);
+	VectorSet(maxs, 16, 16, 32);
+
+	// Set the end point for the trace to be the same as the start point
+	VectorCopy(pos, end);
+
+	// Adjust end point vertically to check from slightly above the position
+	end[2] += 10;
+
+	// Perform the trace
+	tr = gi.trace(pos, mins, maxs, end, NULL, MASK_SOLID);
+
+	// Check if the trace hit anything
+	if (tr.fraction < 1.0)
+		return false; // The location is obstructed
+
+	// Additional checks can go here, like checking for water or other specific conditions
+
+	return true; // The location is clear
+}
+
+/*
+=============
+FindAllPlayers
+=============
+*/
+int FindAllPlayers(edict_t** playerList, int maxPlayers) {
+	int numPlayers = 0;
+	for (int i = 0; i < maxclients->value && numPlayers < maxPlayers; i++) {
+		edict_t* ent = g_edicts + 1 + i;
+		if (ent->inuse && ent->client) {
+			playerList[numPlayers++] = ent;
+		}
+	}
+	return numPlayers;
+}
+
+/*
+=============
+CalculateZombiesToSpawn
+=============
+*/
+int CalculateZombiesToSpawn(int wave) {
+	return 10 + (wave - 1) * 5; // Example formula, adjust as needed
+}
+
+/*
+=============
+CalculateSpawnPosition
+=============
+*/
+void CalculateSpawnPosition(edict_t* player, float radius, vec3_t spawnPos) {
+	// Define a minimum distance from the player to avoid spawning zombies too close
+	float minDistance = 100.0; // Adjust this value as needed
+
+	do {
+		// Random angle and distance within the radius
+		float angle = random() * 2 * M_PI;
+		float distance = minDistance + random() * (radius - minDistance);
+
+		spawnPos[0] = player->s.origin[0] + cos(angle) * distance;
+		spawnPos[1] = player->s.origin[1] + sin(angle) * distance;
+		spawnPos[2] = player->s.origin[2]; // Same vertical position as the player
+
+		// Check if spawnPos is a valid location (not inside walls, etc.)
+	} while (!IsValidSpawnLocation(spawnPos));
+}
+
+/*
+=============
+SpawnWaveZombies
+=============
+*/
+void SpawnWaveZombies() {
+	edict_t* players[MAX_CLIENTS];
+	int numPlayers = FindAllPlayers(players, MAX_CLIENTS);
+
+	if (numPlayers <= 0) return; // No players found
+
+	vec3_t spawnPos;
+	for (int i = 0; i < zombiesToSpawn; i++) {
+		if (zombiesAlive >= MAX_ZOMBIES) break; // Limit the number of zombies
+
+		edict_t* targetPlayer = players[i % numPlayers]; // Distribute zombies among players
+		CalculateSpawnPosition(targetPlayer, 500.0, spawnPos); // Calculate spawn position
+
+		edict_t* zombie = G_Spawn(); // Function to spawn an entity
+		VectorCopy(spawnPos, zombie->s.origin); // Set spawn position
+
+		SP_monster_soldier(zombie, currentWave);
+		zombiesAlive++;  // Increment zombiesAlive
+	}
+}
+
+/*
+=============
+ManageWaveProgression
+=============
+*/
+void ManageWaveProgression() {
+	if (waveActive && level.time > nextWaveTime) {
+		if (zombiesAlive <= 0 && roundZombies <= 0) {
+			// Advance to the next wave
+			currentWave++;
+			zombiesToSpawn = CalculateZombiesToSpawn(currentWave);
+			roundZombies = zombiesToSpawn;
+			SpawnWaveZombies();
+
+			// Send message to all connected clients about the new wave
+			for (int i = 0; i < maxclients->value; i++) {
+				edict_t* client = g_edicts + 1 + i;
+				if (!client->inuse)
+					continue;
+
+			}
+
+			// Set the cooldown for the next wave
+			nextWaveTime = level.time + WAVE_COOLDOWN_TIME;
+		}
+		else if (roundZombies > 0 && zombiesAlive < MAX_ZOMBIES) {
+			// There are still zombies to spawn in the current round
+			SpawnWaveZombies();
+		}
+	}
+}
+
+/*
+=============
+InitializeWaveSystem
+=============
+*/
+void InitializeWaveSystem() {
+	currentWave = 1;
+
+	zombiesToSpawn = CalculateZombiesToSpawn(currentWave);
+	roundZombies = zombiesToSpawn;
+
+	zombiesAlive = 0;
+	waveActive = true;
+
+	SpawnWaveZombies();
+}
+
+/*
+=============
+CheckSelfRevive
+=============
+*/
+void CheckSelfRevive(edict_t* player) {
+	edict_t*	players[MAX_CLIENTS];
+	int			numPlayers = FindAllPlayers(players, MAX_CLIENTS);
+	
+	// Check If player is down and has remaining Revives 
+	if (player->downflag == DOWN_YES && player->client->selfRevivesRemaining == 0) {
+		if (numPlayers == 1) {
+			gi.cprintf(player, PRINT_HIGH, "GAME OVER!\n");
+			EndDMLevel ();
+		}
+	};
+
+	if (player->deadflag == DEAD_DYING && level.time > player->client->selfReviveTime) {
+
+		player->deadflag = DEAD_DEAD; // Player is now fully dead
+
+		// Check if the player should enter spectator mode or if the game should end
+		if (numPlayers > 1) {
+			// More than one player remaining, switch to spectator mode
+			if (!player->client->pers.spectator) {
+				player->client->pers.spectator = true;
+				player->client->resp.spectator = true;
+				player->movetype = MOVETYPE_NOCLIP;
+				player->downflag = DOWN_NO;
+				spectator_respawn(player);
+			}
+		}
+		else {
+			// Last player, end the game
+			if (!player->client->pers.spectator) {
+				player->client->pers.spectator = true;
+				player->client->resp.spectator = true;
+				player->movetype = MOVETYPE_NOCLIP;
+				player->downflag = DOWN_NO;
+				spectator_respawn(player);
+			}
+
+			gi.cprintf(player, PRINT_HIGH, "GAME OVER!\n");
+			//ExitLevel();
+		}
+	}
+}
+
+void CheckRespawn(edict_t* self) {
+	if (deathmatch->value && self->client->deadRound != currentWave && self->client->pers.spectator) {
+		self->client->pers.spectator = false;
+		respawn(self);
+	}
+}
+
+/*
 ================
 G_RunFrame
 
@@ -354,6 +574,18 @@ void G_RunFrame (void)
 {
 	int		i;
 	edict_t	*ent;
+
+	// Set the time to initialize the wave system if not already set
+	if (waveSystemInitTime == 0) {
+		waveSystemInitTime = level.time + WAVE_INIT_DELAY;
+	}
+
+	// Initialize the wave system after the delay
+	if (!isWaveSystemInitialized && level.time > waveSystemInitTime) {
+		InitializeWaveSystem();
+		gi.dprintf("Wave System Initialized\n");
+		isWaveSystemInitialized = true;
+	}
 
 	level.framenum++;
 	level.time = level.framenum*FRAMETIME;
@@ -367,6 +599,18 @@ void G_RunFrame (void)
 	{
 		ExitLevel ();
 		return;
+	}
+
+	// Wave management
+	ManageWaveProgression();
+
+	// check if players are down
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* player = g_edicts + 1 + i;
+		if (player->inuse) {
+			CheckSelfRevive(player);
+			CheckRespawn(player);
+		}
 	}
 
 	//
@@ -403,7 +647,7 @@ void G_RunFrame (void)
 	}
 
 	// see if it is time to end a deathmatch
-	CheckDMRules ();
+	// CheckDMRules ();
 
 	// build the playerstate_t structures for all players
 	ClientEndServerFrames ();

@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 #include "g_local.h"
 
+extern int currentWave;
 
 
 /*
@@ -176,6 +177,9 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 	edict_t		*cl_ent;
 	char	*tag;
 
+	if (ent->client->showzombie || ent->client->showdowned)
+		return;
+
 	// sort the clients by score
 	total = 0;
 	for (i=0 ; i<game.maxclients ; i++)
@@ -245,6 +249,14 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 		strcpy (string + stringlength, entry);
 		stringlength += j;
 	}
+	
+	// Append information about the current wave
+	char waveInfo[128];
+	snprintf(waveInfo, sizeof(waveInfo), "xv 20 yv 20 string2 \"Round: %d\" ", currentWave);
+	if (stringlength + strlen(waveInfo) < 1400) {
+		strcat(string, waveInfo);
+		stringlength += strlen(waveInfo);
+	}
 
 	gi.WriteByte (svc_layout);
 	gi.WriteString (string);
@@ -291,6 +303,60 @@ void Cmd_Score_f (edict_t *ent)
 	DeathmatchScoreboard (ent);
 }
 
+/*
+==================
+DisplayDownedMessage
+
+Display the Downed
+==================
+*/
+void DisplayDownedMessage(edict_t* ent) {
+	char			entry[1024];
+	char			string[1400];
+	int				stringlength;
+	gclient_t* cl;
+
+	gi.unicast(ent, true);
+	cl = ent->client;
+
+	cl->showhelp = false;
+	cl->showzombie = false;
+	cl->showscores = true;
+	cl->showdowned = true;
+
+	// Initialize the string
+	string[0] = 0;
+	stringlength = strlen(string);
+
+	// Append information about the game mode and key bindings
+	snprintf(entry, sizeof(entry), "xv 100 yv 100 string2 \"YOU ARE DOWNED\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
+	// Send the layout
+	gi.WriteByte(svc_layout);
+	gi.WriteString(string);
+}
+
+/*
+==================
+ClearDownedMessage
+
+Clear the Downed
+==================
+*/
+void ClearDownedMessage(edict_t* ent) {
+	gclient_t* cl;
+
+	cl = ent->client;
+
+	if (cl->showscores && cl->showdowned)
+	{
+		cl->showscores = false;
+		cl->showdowned = false;
+		return;
+	}
+}
 
 /*
 ==================

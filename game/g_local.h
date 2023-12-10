@@ -113,6 +113,9 @@ typedef enum
 #define DEAD_DEAD				2
 #define DEAD_RESPAWNABLE		3
 
+#define DOWN_NO					0
+#define DOWN_YES				1
+
 //range
 #define RANGE_MELEE				0
 #define RANGE_NEAR				1
@@ -513,6 +516,10 @@ extern	edict_t			*g_edicts;
 #define random()	((rand () & 0x7fff) / ((float)0x7fff))
 #define crandom()	(2.0 * (random() - 0.5))
 
+#define MAX_ZOMBIES 10 
+#define WAVE_COOLDOWN_TIME 10.0 // 10 seconds cooldown between waves
+#define WAVE_INIT_DELAY 20.0 // Delay in seconds before initializing the wave system
+
 extern	cvar_t	*maxentities;
 extern	cvar_t	*deathmatch;
 extern	cvar_t	*coop;
@@ -601,6 +608,8 @@ extern	gitem_t	itemlist[];
 //
 void Cmd_Help_f (edict_t *ent);
 void Cmd_Score_f (edict_t *ent);
+void DisplayDownedMessage(edict_t* ent);
+void ClearDownedMessage(edict_t* ent);
 
 //
 // g_items.c
@@ -671,6 +680,8 @@ void T_RadiusDamage (edict_t *inflictor, edict_t *attacker, float damage, edict_
 #define DEFAULT_DEATHMATCH_SHOTGUN_COUNT	12
 #define DEFAULT_SHOTGUN_COUNT	12
 #define DEFAULT_SSHOTGUN_COUNT	20
+
+#define REVIVE_RADIUS 200
 
 //
 // g_monster.c
@@ -754,12 +765,15 @@ void InitClientPersistant (gclient_t *client);
 void InitClientResp (gclient_t *client);
 void InitBodyQue (void);
 void ClientBeginServerFrame (edict_t *ent);
+void spectator_respawn(edict_t* ent);
 
 //
 // g_player.c
 //
 void player_pain (edict_t *self, edict_t *other, float kick, int damage);
 void player_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point);
+void Cmd_SelfRevive_f(edict_t* ent);
+void TryReviveOtherPlayer(edict_t* player, edict_t* target);
 
 //
 // g_svcmds.c
@@ -890,6 +904,8 @@ struct gclient_s
 
 	qboolean	showscores;			// set layout stat
 	qboolean	showinventory;		// set layout stat
+	qboolean	showzombie;
+	qboolean	showdowned;
 	qboolean	showhelp;
 	qboolean	showhelpicon;
 
@@ -898,6 +914,8 @@ struct gclient_s
 	int			buttons;
 	int			oldbuttons;
 	int			latched_buttons;
+
+	int selfRevivesRemaining;
 
 	qboolean	weapon_thunk;
 
@@ -948,6 +966,7 @@ struct gclient_s
 	float		grenade_time;
 	int			silencer_shots;
 	int			weapon_sound;
+	int			deadRound;			// Round number in which the player died
 
 	float		pickup_msg_time;
 
@@ -956,6 +975,8 @@ struct gclient_s
 	int			flood_whenhead;		// head pointer for when said
 
 	float		respawn_time;		// can respawn when time > this
+	float		selfReviveTime;		// can be revied when time > this
+
 
 	edict_t		*chase_target;		// player we are chasing
 	qboolean	update_chase;		// need to update chase info?
@@ -1055,6 +1076,7 @@ struct edict_s
 	int			max_health;
 	int			gib_health;
 	int			deadflag;
+	int			downflag;
 	qboolean	show_hostile;
 
 	float		powerarmor_time;

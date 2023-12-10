@@ -121,7 +121,7 @@ void SP_monster_gladiator (edict_t *self);
 void SP_monster_gunner (edict_t *self);
 void SP_monster_infantry (edict_t *self);
 void SP_monster_soldier_light (edict_t *self);
-void SP_monster_soldier (edict_t *self);
+void SP_monster_soldier (edict_t *self, int roundNumber);
 void SP_monster_soldier_ss (edict_t *self);
 void SP_monster_tank (edict_t *self);
 void SP_monster_medic (edict_t *self);
