@@ -368,6 +368,63 @@ void Drop_Weapon (edict_t *ent, gitem_t *item)
 
 /*
 ================
+GetWeaponDamageMultiplier
+================
+*/
+float GetWeaponDamageMultiplier(gclient_t* client, char* weaponName) 
+{
+	int upgradeLevel = 0;
+
+	if (strcmp(weaponName, "shotgun") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.shotgun;
+	}
+	else if (strcmp(weaponName, "supershotgun") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.supershotgun;
+	}
+	else if (strcmp(weaponName, "railgun") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.railgun;
+	}
+	else if (strcmp(weaponName, "blaster") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.blaster;
+	}
+	else if (strcmp(weaponName, "machinegun") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.machinegun;
+	}
+	else if (strcmp(weaponName, "chaingun") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.chaingun;
+	}
+	else if (strcmp(weaponName, "bfg") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.bfg;
+	}
+	else if (strcmp(weaponName, "grenadelauncher") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.grenadelauncher;
+	}
+	else if (strcmp(weaponName, "rocketlauncher") == 0) 
+	{
+		upgradeLevel = client->weapon_upgrades.rocketlauncher;
+	}
+
+	switch (upgradeLevel) 
+	{
+		case 1: return 1.5;
+		case 2: return 2.0;
+		case 3: return 2.5;
+		default: return 1.0;
+	}
+}
+
+
+
+/*
+================
 Weapon_Generic
 
 A generic function to handle the basics of weapon thinking
@@ -711,7 +768,8 @@ void weapon_grenadelauncher_fire (edict_t *ent)
 	vec3_t	offset;
 	vec3_t	forward, right;
 	vec3_t	start;
-	int		damage = 120;
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "grenadelauncher");
+	int		damage = 120 * multiplier;
 	float	radius;
 
 	radius = damage+40;
@@ -760,13 +818,21 @@ void Weapon_RocketLauncher_Fire (edict_t *ent)
 {
 	vec3_t	offset, start;
 	vec3_t	forward, right;
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "rocketlauncher");
 	int		damage;
 	float	damage_radius;
 	int		radius_damage;
 
-	damage = 100 + (int)(random() * 20.0);
+	damage = 100 + (int)(random() * 20.0) * multiplier;
 	radius_damage = 120;
-	damage_radius = 120;
+
+	if (multiplier > 1) {
+		damage_radius = 120 * 1.35;
+	}
+	else {
+		damage_radius = 120;
+	}
+
 	if (is_quad)
 	{
 		damage *= 4;
@@ -846,10 +912,11 @@ void Blaster_Fire (edict_t *ent, vec3_t g_offset, int damage, qboolean hyper, in
 
 void Weapon_Blaster_Fire (edict_t *ent)
 {
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "blaster");
 	int		damage;
 
 	if (deathmatch->value)
-		damage = 15;
+		damage = 15 * multiplier;
 	else
 		damage = 10;
 	Blaster_Fire (ent, vec3_origin, damage, false, EF_BLASTER);
@@ -870,6 +937,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 	float	rotation;
 	vec3_t	offset;
 	int		effect;
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "blaster");
 	int		damage;
 
 	ent->client->weapon_sound = gi.soundindex("weapons/hyprbl1a.wav");
@@ -901,7 +969,7 @@ void Weapon_HyperBlaster_Fire (edict_t *ent)
 			else
 				effect = 0;
 			if (deathmatch->value)
-				damage = 15;
+				damage = 15 * multiplier;
 			else
 				damage = 20;
 			Blaster_Fire (ent, offset, damage, true, effect);
@@ -956,7 +1024,8 @@ void Machinegun_Fire (edict_t *ent)
 	vec3_t		start;
 	vec3_t		forward, right;
 	vec3_t		angles;
-	int			damage = 8;
+	float		multiplier = GetWeaponDamageMultiplier(ent->client, "machinegun");
+	int			damage = 8 * multiplier;
 	int			kick = 2;
 	vec3_t		offset;
 
@@ -1052,11 +1121,12 @@ void Chaingun_Fire (edict_t *ent)
 	vec3_t		forward, right, up;
 	float		r, u;
 	vec3_t		offset;
+	float		multiplier = GetWeaponDamageMultiplier(ent->client, "chaingun");
 	int			damage;
 	int			kick = 2;
 
 	if (deathmatch->value)
-		damage = 6;
+		damage = 6 * multiplier;
 	else
 		damage = 8;
 
@@ -1186,7 +1256,8 @@ void weapon_shotgun_fire (edict_t *ent)
 	vec3_t		start;
 	vec3_t		forward, right;
 	vec3_t		offset;
-	int			damage = 4;
+	float		multiplier = GetWeaponDamageMultiplier(ent->client, "shotgun");
+	int			damage = 4 * multiplier;
 	int			kick = 8;
 
 	if (ent->client->ps.gunframe == 9)
@@ -1242,7 +1313,8 @@ void weapon_supershotgun_fire (edict_t *ent)
 	vec3_t		forward, right;
 	vec3_t		offset;
 	vec3_t		v;
-	int			damage = 6;
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "supershotgun");
+	int			damage = 6 * multiplier;
 	int			kick = 12;
 
 	AngleVectors (ent->client->v_angle, forward, right, NULL);
@@ -1304,12 +1376,13 @@ void weapon_railgun_fire (edict_t *ent)
 	vec3_t		start;
 	vec3_t		forward, right;
 	vec3_t		offset;
+	float		multiplier = GetWeaponDamageMultiplier(ent->client, "railgun");
 	int			damage;
 	int			kick;
 
 	if (deathmatch->value)
 	{	// normal damage is too extreme in dm
-		damage = 100;
+		damage = 100 * multiplier;
 		kick = 200;
 	}
 	else
@@ -1369,10 +1442,11 @@ void weapon_bfg_fire (edict_t *ent)
 	vec3_t	offset, start;
 	vec3_t	forward, right;
 	int		damage;
+	float	multiplier = GetWeaponDamageMultiplier(ent->client, "bfg");
 	float	damage_radius = 1000;
 
 	if (deathmatch->value)
-		damage = 200;
+		damage = 200 * multiplier;
 	else
 		damage = 500;
 

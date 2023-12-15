@@ -505,6 +505,14 @@ void InitializeWaveSystem() {
 	zombiesAlive = 0;
 	waveActive = true;
 
+	// Set All Player Zombie Counts to 0;
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* player = g_edicts + 1 + i;
+		if (player->inuse) {
+			player->zombiePoints = 5000; //5000 for demo
+		}
+	}
+
 	SpawnWaveZombies();
 }
 
