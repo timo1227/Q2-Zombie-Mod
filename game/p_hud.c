@@ -242,7 +242,7 @@ void DeathmatchScoreboardMessage (edict_t *ent, edict_t *killer)
 		// send the layout
 		Com_sprintf (entry, sizeof(entry),
 			"client %i %i %i %i %i %i ",
-			x, y, sorted[i], cl->resp.score, cl->ping, (level.framenum - cl->resp.enterframe)/600);
+			x, y, sorted[i], ent->zombiePoints, cl->ping, (level.framenum - cl->resp.enterframe)/600);
 		j = strlen(entry);
 		if (stringlength + j > 1024)
 			break;
