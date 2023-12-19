@@ -1092,6 +1092,8 @@ struct edict_s
 	int			downflag;
 	int			zombiePoints;
 	qboolean	show_hostile;
+	qboolean    staminaUp;
+	qboolean	doubleTap;
 
 	float		powerarmor_time;
 

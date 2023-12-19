@@ -205,6 +205,10 @@ qboolean Pickup_Adrenaline (edict_t *ent, edict_t *other)
 	if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
 		SetRespawn (ent, ent->item->quantity);
 
+	//Set Stamina up true
+	other->staminaUp = true;
+	gi.cprintf(ent, PRINT_HIGH, "COULD BE STAMINA UP\n");
+
 	return true;
 }
 
@@ -343,6 +347,12 @@ void Use_Quad (edict_t *ent, gitem_t *item)
 	ent->client->pers.inventory[ITEM_INDEX(item)]--;
 	ValidateSelectedItem (ent);
 
+	if (!ent->doubleTap)
+	{
+		ent->doubleTap = true;
+		gi.cprintf(ent, PRINT_HIGH, "DOUBLE TAP\n");
+	}
+
 	if (quad_drop_timeout_hack)
 	{
 		timeout = quad_drop_timeout_hack;
@@ -410,9 +420,20 @@ void	Use_Invulnerability (edict_t *ent, gitem_t *item)
 
 void	Use_Silencer (edict_t *ent, gitem_t *item)
 {
-	ent->client->pers.inventory[ITEM_INDEX(item)]--;
-	ValidateSelectedItem (ent);
-	ent->client->silencer_shots += 30;
+	gitem_t* it;
+	//ent->client->pers.inventory[ITEM_INDEX(item)]--;
+	//ValidateSelectedItem (ent);
+	//ent->client->silencer_shots += 30;
+
+	//REFILL GUN AMMO
+	gi.cprintf(ent, PRINT_HIGH, "MAX AMMO\n");
+	for (int i = 0; i < game.num_items; i++) {
+		it = &itemlist[i];
+		if (!it->pickup)
+			continue;
+		if (it->flags & IT_AMMO)
+			Add_Ammo(ent, it, 1000);
+	}
 
 //	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
 }
@@ -561,7 +582,7 @@ qboolean Pickup_Health (edict_t *ent, edict_t *other)
 
 	other->health += ent->count;
 
-	if (!(ent->style & HEALTH_IGNORE_MAX))
+	if (!(ent->style & HEALTH_IGNORE_MAX)) 
 	{
 		if (other->health > other->max_health)
 			other->health = other->max_health;
@@ -617,6 +638,30 @@ qboolean Pickup_Armor (edict_t *ent, edict_t *other)
 	newinfo = (gitem_armor_t *)ent->item->info;
 
 	old_armor_index = ArmorIndex (other);
+
+
+	// Check if Body Armor is picked up for Juggernog perk
+	if (ITEM_INDEX(ent->item) == jacket_armor_index) {
+		// Apply Juggernog perk effect: Increase max health
+		int extraHealth = 50;
+		other->client->pers.max_health += extraHealth;
+		other->max_health += extraHealth;
+
+		gi.cprintf(other, PRINT_HIGH, "JUGGERNOG ACTIVATED\n");
+
+		// heal the player to new max health
+		other->health += extraHealth;
+		if (other->health > other->client->pers.max_health) {
+			other->health = other->client->pers.max_health;
+		}
+	}
+
+	if (ITEM_INDEX(ent->item) == combat_armor_index)
+	{
+		//QUICK REVIVE ACTIVE
+		other->client->selfRevivesRemaining++;
+		gi.cprintf(other, PRINT_HIGH, "QUICK REVIVE\n");
+	}
 
 	// handle armor shards specially
 	if (ent->item->tag == ARMOR_SHARD)

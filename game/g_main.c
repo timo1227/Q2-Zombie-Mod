@@ -90,7 +90,7 @@ int currentWave = 0;
 static int zombiesToSpawn = 0;
 int zombiesAlive = 0; 
 int roundZombies = 0; // Total number of zombies to be spawned in the current round
-static qboolean waveActive = false;
+qboolean waveActive = false;
 
 static float nextWaveTime = 0;
 static float waveSystemInitTime = 0; // Time at which the wave system will be initialized

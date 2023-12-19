@@ -1274,7 +1274,7 @@ void SP_monster_soldier(edict_t* self, int roundNumber)
 
 	self->s.skinnum = 2;
 	// Health scales with round number
-	self->health = 30 + (roundNumber * .5);
+	self->health = 50 + (roundNumber * .85);
 	self->gib_health = -30;
 }
 
