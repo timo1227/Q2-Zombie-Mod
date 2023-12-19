@@ -503,6 +503,10 @@ void Cmd_Inven_f(edict_t* ent) {
 	strcat(string, entry);
 	stringlength += strlen(entry);
 
+	snprintf(entry, sizeof(entry), "xv 20 yv 80 string2 \"Press 'V' to Upgrade Gun\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
 	// Send the layout
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string);
