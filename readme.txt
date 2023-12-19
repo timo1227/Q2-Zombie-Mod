@@ -1,29 +1,25 @@
+# Quake 2 Zombie Mod
 
-This is the complete source code for Quake 2, version 3.19, buildable with
-visual C++ 6.0.  The linux version should be buildable, but we haven't
-tested it for the release.
+## Overview
+Welcome to the Quake 2 Zombie Mod, a thrilling modification that brings a new twist to the classic Quake 2 game. This mod introduces several exciting features:
+- **Perks**: Enhance your gameplay with unique perks.
+- **Round Waves**: Survive increasingly challenging waves of zombies.
+- **Upgradable Guns**: Boost your firepower with weapon upgrades.
+- **Revive Period / Respawn Next Wave**: Experience a unique revive system and respawn mechanics.
 
-The code is all licensed under the terms of the GPL (gnu public license).  
-You should read the entire license, but the gist of it is that you can do 
-anything you want with the code, including sell your new version.  The catch 
-is that if you distribute new binary versions, you are required to make the 
-entire source code available for free to everyone.
+## Installation
+1. **Clone the Repository**: Clone the mod repository to your local machine.
+2. **Prepare the Mod Folder**: Create a new folder named `zombie` in your Quake 2 directory.
+3. **Build the Solution**: Open the game solution in Visual Studio and build it in Release.
+4. **Copy Config File**: Copy the `config.cfg` file from the repo to the `zombie` folder.
+5. **Copy Game DLL**: Copy the `gamex86.dll` file from the build output to the `zombie` folder.
+6. **Launch Quake 2**: Start the original Quake 2 game.
+7. **Activate the Mod**: Open the console in Quake 2 and type `game zombie`. Press Enter.
+8. **Start Deathmatch**: Launch the game in deathmatch mode to enjoy the mod.
 
-The primary intent of this release is for entertainment and educational 
-purposes, but the GPL does allow commercial exploitation if you obey the 
-full license.  If you want to do something commercial and you just can't bear 
-to have your source changes released, we could still negotiate a separate 
-license agreement (for $$$), but I would encourage you to just live with the 
-GPL.
+## Gameplay
+- Press `TAB` in-game to access the Help Screen for guidance and tips.
+- Explore various perks and find the best strategies to survive the zombie waves.
+- Upgrade your weapons and utilize the revive feature to stay in the fight.
 
-All of the Q2 data files remain copyrighted and licensed under the 
-original terms, so you cannot redistribute data from the original game, but if 
-you do a true total conversion, you can create a standalone game based on 
-this code.
-
-Thanks to Robert Duffy for doing the grunt work of building this release.
-
-John Carmack
-Id Software
-
-
+Enjoy the enhanced Quake 2 experience with the Zombie Mod! Stay alert, survive the waves, and conquer the undead!
