@@ -159,12 +159,6 @@ void Cmd_Give_f (edict_t *ent)
 	qboolean	give_all;
 	edict_t		*it_ent;
 
-	if (deathmatch->value && !sv_cheats->value)
-	{
-		gi.cprintf (ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
-		return;
-	}
-
 	name = gi.args();
 
 	if (Q_stricmp(name, "all") == 0)
@@ -500,6 +494,10 @@ void Cmd_Inven_f(edict_t* ent) {
 	stringlength += strlen(entry);
 
 	snprintf(entry, sizeof(entry), "xv 20 yv 60 string2 \"Press 'H' to Revive Teammate\" ");
+	strcat(string, entry);
+	stringlength += strlen(entry);
+
+	snprintf(entry, sizeof(entry), "xv 20 yv 80 string2 \"Press 'V' to Upgrade Gun\" ");
 	strcat(string, entry);
 	stringlength += strlen(entry);
 
@@ -975,6 +973,79 @@ void Cmd_Round_f(edict_t* player) {
 	gi.cprintf(player, PRINT_HIGH, "Next Round, Current Round: %d\n", currentWave);
 }
 
+void Cmd_Points_f(edict_t* player) {
+	if (player->zombiePoints)
+		gi.cprintf(player, PRINT_HIGH, "Zombie Points: %d\n", player->zombiePoints);
+	else
+		gi.cprintf(player, PRINT_HIGH, "Zombie Points Not Init\n");
+}
+
+int* GetCurrentWeaponUpgradeLevel(gclient_t* client) {
+	gitem_t* weapon = client->pers.weapon;
+
+	if (!weapon) return NULL; // No weapon equipped
+
+	if (strcmp(weapon->classname, "weapon_shotgun") == 0) {
+		return &client->weapon_upgrades.shotgun;
+	}
+	else if (strcmp(weapon->classname, "weapon_supershotgun") == 0) {
+		return &client->weapon_upgrades.supershotgun;
+	}
+	else if (strcmp(weapon->classname, "weapon_railgun") == 0) {
+		return &client->weapon_upgrades.railgun;
+	}
+	else if (strcmp(weapon->classname, "weapon_blaster") == 0) {
+		return &client->weapon_upgrades.blaster;
+	}
+	else if (strcmp(weapon->classname, "weapon_machinegun") == 0) {
+		return &client->weapon_upgrades.machinegun;
+	}
+	else if (strcmp(weapon->classname, "weapon_chaingun") == 0) {
+		return &client->weapon_upgrades.chaingun;
+	}
+	else if (strcmp(weapon->classname, "weapon_bfg") == 0) {
+		return &client->weapon_upgrades.bfg;
+	}
+	else if (strcmp(weapon->classname, "weapon_grenadelauncher") == 0) {
+		return &client->weapon_upgrades.grenadelauncher;
+	}
+	else if (strcmp(weapon->classname, "weapon_rocketlauncher") == 0) {
+		return &client->weapon_upgrades.rocketlauncher;
+	}
+
+	return NULL; // Weapon not recognized or not upgradable
+}
+
+void Cmd_UpgradeWeapon_f(edict_t* player) {
+	int cost;
+	int* currentUpgradeLevel = GetCurrentWeaponUpgradeLevel(player->client);
+
+	if (!currentUpgradeLevel) {
+		// Handle error - no weapon equipped or weapon not upgradable
+		gi.cprintf(player, PRINT_HIGH, "Cannot upgrade: No weapon equipped or weapon not upgradable.\n");
+		return;
+	}
+
+	// Determine cost based on current upgrade level
+	switch (*currentUpgradeLevel) {
+	case 0: cost = 5000; break;
+	case 1: cost = 10000; break;
+	case 2: cost = 15000; break;
+	default:
+		gi.cprintf(player, PRINT_HIGH, "Maximum upgrade level reached.\n");
+		return; // Max upgrade level reached
+	}
+
+	if (player->zombiePoints >= cost) {
+		player->zombiePoints -= cost;
+		(*currentUpgradeLevel)++;
+		gi.cprintf(player, PRINT_HIGH, "Weapon upgraded. Current level: %d.\n", *currentUpgradeLevel);
+	}
+	else {
+		gi.cprintf(player, PRINT_HIGH, "Not enough points to upgrade.\n");
+	}
+}
+
 /*
 =================
 ClientCommand
@@ -1070,6 +1141,10 @@ void ClientCommand (edict_t *ent)
 		Cmd_Revives_f(ent);
 	else if (Q_stricmp(cmd, "round") == 0)
 		Cmd_Round_f(ent);
+	else if (Q_stricmp(cmd, "points") == 0)
+		Cmd_Points_f(ent);
+	else if (Q_stricmp(cmd, "upgrade") == 0)
+		Cmd_UpgradeWeapon_f(ent);
 	else	// anything that doesn't match a command will be a chat
 		Cmd_Say_f (ent, false, true);
 }

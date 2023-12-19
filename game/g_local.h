@@ -106,6 +106,18 @@ typedef enum
 	AMMO_SLUGS
 } ammo_t;
 
+typedef struct {
+	int shotgun;
+	int supershotgun;
+	int railgun;
+	int blaster;
+	int machinegun;
+	int chaingun;
+	int bfg;
+	int grenadelauncher;
+	int rocketlauncher;
+} weapon_upgrades_t;
+
 
 //deadflag
 #define DEAD_NO					0
@@ -920,6 +932,7 @@ struct gclient_s
 	qboolean	weapon_thunk;
 
 	gitem_t		*newweapon;
+	weapon_upgrades_t weapon_upgrades;
 
 	// sum up damage over an entire frame, so
 	// shotgun blasts give a single big kick
@@ -1077,7 +1090,10 @@ struct edict_s
 	int			gib_health;
 	int			deadflag;
 	int			downflag;
+	int			zombiePoints;
 	qboolean	show_hostile;
+	qboolean    staminaUp;
+	qboolean	doubleTap;
 
 	float		powerarmor_time;
 

@@ -90,7 +90,7 @@ int currentWave = 0;
 static int zombiesToSpawn = 0;
 int zombiesAlive = 0; 
 int roundZombies = 0; // Total number of zombies to be spawned in the current round
-static qboolean waveActive = false;
+qboolean waveActive = false;
 
 static float nextWaveTime = 0;
 static float waveSystemInitTime = 0; // Time at which the wave system will be initialized
@@ -504,6 +504,14 @@ void InitializeWaveSystem() {
 
 	zombiesAlive = 0;
 	waveActive = true;
+
+	// Set All Player Zombie Counts to 0;
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* player = g_edicts + 1 + i;
+		if (player->inuse) {
+			player->zombiePoints = 5000; //5000 for demo
+		}
+	}
 
 	SpawnWaveZombies();
 }

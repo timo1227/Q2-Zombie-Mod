@@ -386,6 +386,12 @@ void T_Damage (edict_t *targ, edict_t *inflictor, edict_t *attacker, vec3_t dir,
 	if (!targ->takedamage)
 		return;
 
+	// Check for Double Tap perk
+	if (attacker->doubleTap) {
+		damage *= 2; // Double the damage for bullet weapons
+		gi.bprintf(PRINT_HIGH, "DOUBLE TAP ACTIVATING\n");
+	}
+
 	// friendly fire avoidance
 	// if enabled you can't hurt teammates (but you can hurt yourself)
 	// knockback still occurs

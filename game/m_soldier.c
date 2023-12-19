@@ -1148,10 +1148,9 @@ void soldier_die (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 	int		n;
 
 	zombiesAlive--;  // Decrement zombiesAlive count
-	//gi.dprintf("zombiesAlive :%d\n", zombiesAlive);
 	roundZombies--;
-	//gi.dprintf("roundZombies :%d\n", roundZombies);
 
+	attacker->zombiePoints += 500;
 // check for gib
 	if (self->health <= self->gib_health)
 	{
@@ -1275,7 +1274,7 @@ void SP_monster_soldier(edict_t* self, int roundNumber)
 
 	self->s.skinnum = 2;
 	// Health scales with round number
-	self->health = 30 + (roundNumber * .5);
+	self->health = 50 + (roundNumber * .85);
 	self->gib_health = -30;
 }
 
